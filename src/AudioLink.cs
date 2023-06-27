@@ -1,18 +1,25 @@
 ﻿using System;
+using Octokit;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AudioSwitcher.AudioApi;
 using AudioSwitcher.AudioApi.CoreAudio;
+using Microsoft.Win32;
 using TouchPortalSDK;
 using TouchPortalSDK.Interfaces;
 using TouchPortalSDK.Messages.Events;
+using TouchPortalSDK.Messages.Models;
 
 namespace audiolinkCS
 {
     public class AudioLink : ITouchPortalEventHandler
     {
+        private string version = "1.0.0";
+        private string latestReleaseUrl;
+        
         IEnumerable<CoreAudioDevice> inDevices;
         List<String> stringInDevices = new List<string>();
         IEnumerable<CoreAudioDevice> outDevices;
@@ -39,6 +46,7 @@ namespace audiolinkCS
 
             Thread stateUpdate = new Thread(new ThreadStart(StateUpdate));
             stateUpdate.Start();
+            await CheckGitHubNewerVersion();
         }
 
         public void OnClosedEvent(string message)
@@ -294,10 +302,56 @@ namespace audiolinkCS
             throw new NotImplementedException();
         }
 
+        internal string GetSystemDefaultBrowser()
+        {
+            string name = string.Empty;
+            RegistryKey regKey = null;
+
+            try
+            {
+                var regDefault = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.htm\\UserChoice", false);
+                var stringDefault = regDefault.GetValue("ProgId");
+
+                regKey = Registry.ClassesRoot.OpenSubKey(stringDefault + "\\shell\\open\\command", false);
+                name = regKey.GetValue(null).ToString().ToLower().Replace("" + (char)34, "");
+
+                if (!name.EndsWith("exe"))
+                    name = name.Substring(0, name.LastIndexOf(".exe") + 4);
+
+            }
+            catch (Exception ex)
+            {
+                name = string.Format("ERROR: An exception of type: {0} occurred in method: {1} in the following module: {2}", ex.GetType(), ex.TargetSite, this.GetType());
+            }
+            finally
+            {
+                if (regKey != null)
+                    regKey.Close();
+            }
+
+            return name;
+        }
         public void OnNotificationOptionClickedEvent(NotificationOptionClickedEvent message)
         {
-            Console.WriteLine("f");
-            throw new NotImplementedException();
+            Console.WriteLine(latestReleaseUrl);
+            if (message.OptionId == "audiolink_new_update_dl")
+            {
+                try
+                {
+                    var prs = new ProcessStartInfo(GetSystemDefaultBrowser());
+                    prs.Arguments = latestReleaseUrl;
+                    System.Diagnostics.Process.Start(prs);
+                }
+                catch (System.ComponentModel.Win32Exception noBrowser)
+                {
+                    if (noBrowser.ErrorCode==-2147467259)
+                        Console.WriteLine("-2147467259: " + noBrowser.Message);
+                }
+                catch (System.Exception other)
+                {
+                    Console.WriteLine("Other er: " + other.Message);
+                }
+            }
         }
 
         public void OnShortConnectorIdNotificationEvent(ShortConnectorIdNotificationEvent message)
@@ -310,6 +364,49 @@ namespace audiolinkCS
         {
             Console.WriteLine("j");
             throw new NotImplementedException();
+        }
+
+        private async System.Threading.Tasks.Task CheckGitHubNewerVersion()
+        {
+            var gitClient = new GitHubClient(new ProductHeaderValue("DataNext27"));
+            IReadOnlyList<Release> releases = await gitClient.Repository.Release.GetAll("DataNext27", "TouchPortal_AudioLink");
+
+            latestReleaseUrl = releases[0].HtmlUrl;
+
+            Version latestGitHubVersion = new Version(releases[0].TagName);
+            Version localVersion = new Version(version);
+
+            int versionComparison = localVersion.CompareTo(latestGitHubVersion);
+            if (versionComparison < 0)
+            {
+                _client.ShowNotification("audiolink_new_update", "AudioLink New Update Available",
+                    "New version: " + latestGitHubVersion +
+                    "\n\nPlease update to get new features and bug fixes" +
+                    "\n\nCurrent Installed Version: " + version, new []
+                    {
+                        new NotificationOptions() {Id = "audiolink_new_update_dl", Title = "Go To Download Location"}
+                    });
+            }
+            else if (versionComparison > 0)
+            {
+                _client.ShowNotification("audiolink_new_update", "AudioLink New Update Available",
+                    "New version: " + latestGitHubVersion +
+                    "\n\nPlease update to get new features and bug fixes" +
+                    "\n\nCurrent Installed Version: " + version, new []
+                    {
+                        new NotificationOptions() {Id = "update", Title = "Go To Download Location"}
+                    });
+            }
+            else
+            {
+                _client.ShowNotification("audiolink_new_update", "AudioLink New Update Available",
+                    "New version: " + latestGitHubVersion +
+                    "\n\nPlease update to get new features and bug fixes" +
+                    "\n\nCurrent Installed Version: " + version, new []
+                    {
+                        new NotificationOptions() {Id = "update", Title = "Go To Download Location"}
+                    });
+            }
         }
     }
 }
