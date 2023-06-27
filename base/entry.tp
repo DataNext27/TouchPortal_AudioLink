@@ -1,6 +1,6 @@
 ﻿{
   "sdk": 6,
-  "version": 2,
+  "version": 3,
   "name": "AudioLink",
   "id": "audio-link",
   "configuration": {
