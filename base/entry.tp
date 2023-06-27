@@ -1,0 +1,169 @@
+﻿{
+  "sdk": 6,
+  "version": 2,
+  "name": "AudioLink",
+  "id": "audio-link",
+  "configuration": {
+    "colorDark": "#565757",
+    "colorLight": "#022C63",
+    "parentCategory": "audio"
+  },
+  "plugin_start_cmd":"%TP_PLUGIN_FOLDER%TPAudioLink\\audiolinkCS.exe",
+  "categories": [
+    {
+      "id": "main",
+      "name": "Audio-Link",
+      "imagepath": "%TP_PLUGIN_FOLDER%TPAudioLink\\icon-24.png",
+      "connectors": [
+        {
+          "id": "tp_audiolink_input_connector",
+          "name": "Adjust Input Device Volume",
+          "format": "Control input volume for {$inputconnectordata$}",
+          "data": [
+            {
+              "id": "inputconnectordata",
+              "type": "choice",
+              "label": "choice",
+              "default": "",
+              "valueChoices": []
+            }
+          ]
+        },
+        {
+          "id": "tp_audiolink_output_connector",
+          "name": "Adjust Output Device Volume",
+          "format": "Control output volume for {$outputconnectordata$}",
+          "data": [
+            {
+              "id": "outputconnectordata",
+              "type": "choice",
+              "label": "choice",
+              "default": "",
+              "valueChoices": []
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "tp_audiolink_update_devicelist",
+          "name": "Update device list",
+          "prefix": "AudioLink",
+          "type": "communicate",
+          "format": "Update device list"
+        },
+        {
+          "id": "tp_audiolink_increase_volume",
+          "name": "Increase device volume",
+          "prefix": "AudioLink",
+          "type": "communicate",
+          "tryInline": true,
+          "format": "Increase volume by {$deviceincreaseactionvolumedata$} for {$inputoutputchoice$} {$deviceincreaseactiondata$}",
+          "data": [
+            {
+              "id": "inputoutputchoice",
+              "type": "choice",
+              "label": "choice",
+              "default": "",
+              "valueChoices": [
+                "Input",
+                "Output"
+              ]
+            },
+            {
+              "id": "deviceincreaseactiondata",
+              "type": "choice",
+              "label": "choice",
+              "default": "",
+              "valueChoices": []
+            },
+            {
+              "id": "deviceincreaseactionvolumedata",
+              "type": "number",
+              "label": "number",
+              "allowDecimals": false,
+              "minValue": 0,
+              "maxValue": 100,
+              "default": 10
+            }
+          ]
+        },
+        {
+          "id": "tp_audiolink_decrease_volume",
+          "name": "Decrease device volume",
+          "prefix": "AudioLink",
+          "type": "communicate",
+          "tryInline": true,
+          "format": "Decrease volume by {$devicedecreaseactionvolumedata$} for {$inputoutputchoice$} {$devicedecreaseactiondata$}",
+          "data": [
+            {
+              "id": "inputoutputchoice",
+              "type": "choice",
+              "label": "choice",
+              "default": "",
+              "valueChoices": [
+                "Input",
+                "Output"
+              ]
+            },
+            {
+              "id": "devicedecreaseactiondata",
+              "type": "choice",
+              "label": "choice",
+              "default": "",
+              "valueChoices": []
+            },
+            {
+              "id": "devicedecreaseactionvolumedata",
+              "type": "number",
+              "label": "number",
+              "allowDecimals": false,
+              "minValue": 0,
+              "maxValue": 100,
+              "default": 10
+            }
+          ]
+        },
+        {
+          "id": "tp_audiolink_mute_device",
+          "name": "Mute/Unmute device",
+          "prefix": "AudioLink",
+          "type": "communicate",
+          "format": " {$muteunmutechoice$} {$inputoutputchoice$} {$devicetomute$}",
+          "data": [
+            {
+              "id": "muteunmutechoice",
+              "type": "choice",
+              "label": "Mute or Unmute ?",
+              "default": "",
+              "valueChoices": [
+                "Mute",
+                "Unmute",
+                "Toggle"
+              ]
+            },
+            {
+              "id": "inputoutputchoice",
+              "type": "choice",
+              "label": "Input or Output ?",
+              "default": "",
+              "valueChoices": [
+                "Input",
+                "Output"
+              ]
+            },
+            {
+              "id": "devicetomute",
+              "type": "choice",
+              "label": "Device",
+              "default": "",
+              "valueChoices": []
+            }
+          ]
+        }
+      ],
+      "events": [ ],
+      "states": [ ]
+    }
+  ]
+}
