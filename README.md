@@ -12,11 +12,12 @@ AudioLink is a [Touch Portal](https://www.touch-portal.com) plugin that allows y
 
 ## Installation
 1. Download the [latest version](https://github.com/DataNext27/TouchPortal_AudioLink/releases) of the plugin
-2. Open Touch Portal
-  - Click the settings button
-  - Click import plugin
-  - Find the plugin file you've just downloaded and open it
-3. Now start setting up buttons or sliders
+1. Open Touch Portal
+   - Click the settings button
+   - Click import plugin
+   - Find the plugin file you've just downloaded and open it
+1. Now start setting up buttons or sliders
+
 
 ## Plugin Capabilities
 ### Actions
@@ -28,6 +29,7 @@ AudioLink is a [Touch Portal](https://www.touch-portal.com) plugin that allows y
    
 ### States
 No states for now (incomming)
+
 
 ## ChangeLog
 ```
