@@ -1,6 +1,6 @@
 {
     "sdk": 6,
-    "version": 3,
+    "version": 4,
     "name": "AudioLink",
     "id": "audio-link",
     "configuration": {
@@ -12,7 +12,7 @@
     "categories": [
         {
             "id": "main",
-            "name": "Audio-Link",
+            "name": "AudioLink",
             "imagepath": "%TP_PLUGIN_FOLDER%TPAudioLink\\icon-24.png",
             "connectors": [
                 {
@@ -164,6 +164,26 @@
             ],
             "events": [ ],
             "states": [ ]
+        }
+    ],
+    "settings": [
+        {
+            "name": "Update interval (ms)",
+            "default": "2000",
+            "type": "number",
+            "maxLength": 20,
+            "isPassword": false,
+            "minValue": 2000,
+            "maxValue": 20000,
+            "readOnly": false
+        },
+        {
+            "name": "Muted states names",
+            "default": "Muted,Unmuted",
+            "type": "text",
+            "maxLength": 25,
+            "isPassword": false,
+            "readOnly": false
         }
     ]
 }

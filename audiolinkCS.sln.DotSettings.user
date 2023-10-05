@@ -1,0 +1,5 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/AssemblyExplorer/XmlDocument/@EntryValue">&lt;AssemblyExplorer&gt;&#xD;
+  &lt;Assembly Path="C:\Users\Aurel\.nuget\packages\audioswitcher.audioapi.coreaudio\4.0.0-alpha5\lib\net45\AudioSwitcher.AudioApi.CoreAudio.dll" /&gt;&#xD;
+  &lt;Assembly Path="C:\Users\Aurel\.nuget\packages\audioswitcher.audioapi\4.0.0-alpha5\lib\net45\AudioSwitcher.AudioApi.dll" /&gt;&#xD;
+&lt;/AssemblyExplorer&gt;</s:String></wpf:ResourceDictionary>

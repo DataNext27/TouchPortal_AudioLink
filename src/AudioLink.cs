@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using AudioSwitcher.AudioApi;
 using AudioSwitcher.AudioApi.CoreAudio;
-using Microsoft.Win32;
 using TouchPortalSDK;
 using TouchPortalSDK.Interfaces;
 using TouchPortalSDK.Messages.Events;
@@ -17,16 +16,20 @@ namespace audiolinkCS
 {
     public class AudioLink : ITouchPortalEventHandler
     {
-        private string version = "1.0.0";
+        private string version = "1.1.0";
         private string latestReleaseUrl;
         
         IEnumerable<CoreAudioDevice> inDevices;
         List<String> stringInDevices = new List<string>();
         IEnumerable<CoreAudioDevice> outDevices;
         List<String> stringOutDevices = new List<string>();
-        bool isUpdatingDevicesList;
-
-         bool _isRunning = false;
+        IEnumerable<CoreAudioDevice> allDevices;
+        bool _isUpdatingDevicesList;
+        bool _hasUpdatedDevicesListOnce = false;
+        
+        bool _isRunning = false;
+        int _updateInterval;
+        string _muteStatesNames;
 
         public string PluginId => "audio-link";
 
@@ -39,35 +42,116 @@ namespace audiolinkCS
 
         public async void Run()
         {
-            await UpdateDevicesList();
             _client.Connect();
+            await UpdateDevicesList();
             _isRunning = true;
-            ListUpdate();
 
-            Thread stateUpdate = new Thread(new ThreadStart(StateUpdate));
-            stateUpdate.Start();
+            Thread update = new Thread(Update);
+            update.Start();
             await CheckGitHubNewerVersion();
         }
 
         public void OnClosedEvent(string message)
         {
+            _isRunning = false;
             Environment.Exit(0);
         }
 
-        public void StateUpdate()
+        public void Update()
         {
+            int lastIVol = -1;
+            int lastOVol = -1;
             while (_isRunning)
             {
-                Thread.Sleep(2000);
+                while (!_hasUpdatedDevicesListOnce) { Thread.Sleep(25); } // if devices list are empty, wait
+                
+                Thread.Sleep(_updateInterval);
                 foreach (CoreAudioDevice d in inDevices)
                 {
-                    _client.ConnectorUpdate($"tp_audiolink_input_connector|inputconnectordata={d.FullName}", Convert.ToInt32(d.Volume));
+                    if (lastIVol != Convert.ToInt32(d.Volume))
+                    {
+                        _client.ConnectorUpdate($"tp_audiolink_input_connector|inputconnectordata={d.FullName}", Convert.ToInt32(d.Volume));
+                        UpdateStateManager(d);
+                    }
+                    
                 }
                 foreach (CoreAudioDevice d in outDevices)
                 {
-                    _client.ConnectorUpdate($"tp_audiolink_output_connector|outputconnectordata={d.FullName}", Convert.ToInt32(d.Volume));
+                    if (lastOVol != Convert.ToInt32(d.Volume))
+                    {
+                        _client.ConnectorUpdate($"tp_audiolink_output_connector|outputconnectordata={d.FullName}", Convert.ToInt32(d.Volume));
+                        UpdateStateManager(d);
+                    } 
+                    lastOVol = Convert.ToInt32(d.Volume);
                 }
             }
+        }
+
+        public void UpdateStateManager(CoreAudioDevice d)
+        {
+            // Name Section
+            
+            // Volume Section
+            _client.StateUpdate($"tp_audiolink_device_volume_{d.FullName}", Convert.ToString(Convert.ToInt32(d.Volume)));
+            
+            // Mute Section
+            if (d.IsMuted)
+            {
+                _client.StateUpdate($"tp_audiolink_device_state_{d.FullName}", $"{_muteStatesNames.Split(",")[0]}");
+            }
+            else
+            {
+                _client.StateUpdate($"tp_audiolink_device_state_{d.FullName}", $"{_muteStatesNames.Split(",")[1]}");
+            }
+        }
+        
+        public void CreateStateManager(string direction, CoreAudioDevice d)
+        {
+            _client.CreateState($"tp_audiolink_device_state_{d.FullName}", $"{direction} - {d.FullName}", "", "Device state");
+            _client.CreateState($"tp_audiolink_device_volume_{d.FullName}", $"{direction} - {d.FullName}", "", "Device volume");
+            _client.CreateState($"tp_audiolink_device_name_{d.FullName}", $"{direction} - {d.FullName}", $"{d.FullName}", "Device name");
+        }
+
+        public void RemoveStateManager(CoreAudioDevice d)
+        {
+            _client.RemoveState($"tp_audiolink_device_name_{d.FullName}");
+            _client.RemoveState($"tp_audiolink_device_volume_{d.FullName}");
+            _client.RemoveState($"tp_audiolink_device_state_{d.FullName}");
+        }
+        
+        public async Task UpdateDevicesList()
+        {
+            _isUpdatingDevicesList = true;
+            
+            // Old allDevices
+            if(allDevices != null) foreach (CoreAudioDevice d in allDevices) { RemoveStateManager(d); }
+            
+            inDevices = new CoreAudioController().GetCaptureDevices(DeviceState.Active);
+            outDevices = new CoreAudioController().GetPlaybackDevices(DeviceState.Active);
+            allDevices = new CoreAudioController().GetDevices(DeviceState.Active);
+            
+            // New allDevices
+            foreach (CoreAudioDevice d in allDevices) { RemoveStateManager(d); }
+            
+            stringInDevices.Clear();
+            stringOutDevices.Clear();
+            
+            foreach (CoreAudioDevice d in inDevices)
+            {
+                stringInDevices.Add(d.FullName);
+                CreateStateManager("Input", d);
+            }
+            foreach (CoreAudioDevice d in outDevices)
+            {
+                stringOutDevices.Add(d.FullName);
+                CreateStateManager("Output", d);
+            }
+            
+            ListUpdate();
+            foreach (CoreAudioDevice d in allDevices) { UpdateStateManager(d); }
+            
+            _isUpdatingDevicesList = false;
+            _hasUpdatedDevicesListOnce = true;
         }
         
         public void ListUpdate()
@@ -83,7 +167,7 @@ namespace audiolinkCS
                 .Select(dataItem => $"\"{dataItem.Key}\":\"{dataItem.Value}\"")
                 .ToArray();
             var dataString = string.Join(", ", dataArray);
-            Console.Write($"[OnConnecterChangeEvent] ConnectorId: '{message.ConnectorId}', Value: '{message.Value}', Data: '{dataString}'");
+            Console.WriteLine($"[OnConnecterChangeEvent] ConnectorId: '{message.ConnectorId}', Value: '{message.Value}', Data: '{dataString}'");
             
             if (message.ConnectorId == "tp_audiolink_input_connector")
             {
@@ -102,13 +186,13 @@ namespace audiolinkCS
             
             if (direction == "in")
             {
-                index = GetDeviceIndex(device, stringInDevices);
+                index = new Utilities().GetDeviceIndex(device, stringInDevices);
 
                 tmpDevice = inDevices.ToArray()[index];
             }
             else
             {
-                index = GetDeviceIndex(device, stringOutDevices);
+                index = new Utilities().GetDeviceIndex(device, stringOutDevices);
                 
                 tmpDevice = outDevices.ToArray()[index];
             }
@@ -123,42 +207,7 @@ namespace audiolinkCS
             {
                 tmpDevice.SetVolumeAsync(vol);
             }
-        }
-
-        public int GetDeviceIndex(string deviceName, List<String> stringDeviceList)
-        {
-            int index = 0;
-            foreach (string d in stringDeviceList)
-            {
-                if (deviceName == d)
-                {
-                    break;
-                }
-
-                index++;
-            }
-            return index;
-        }
-
-        public async Task UpdateDevicesList()
-        {
-            isUpdatingDevicesList = true;
-            
-            inDevices = new CoreAudioController().GetCaptureDevices(DeviceState.Active);
-            outDevices = new CoreAudioController().GetPlaybackDevices(DeviceState.Active);
-            stringInDevices = new List<string>();
-            stringOutDevices = new List<string>();
-            
-            foreach (CoreAudioDevice d in inDevices)
-            {
-                stringInDevices.Add(d.FullName);
-            }
-            foreach (CoreAudioDevice d in outDevices)
-            {
-                stringOutDevices.Add(d.FullName);
-            }
-            
-            isUpdatingDevicesList = false;
+            UpdateStateManager(tmpDevice);
         }
         
         public async void OnActionEvent(ActionEvent message)
@@ -167,11 +216,10 @@ namespace audiolinkCS
             switch (message.ActionId)
             {
                 case "tp_audiolink_update_devicelist":
-                    if (!isUpdatingDevicesList)
+                    if (!_isUpdatingDevicesList)
                     {
-                        await Task.Run((() => UpdateDevicesList()));
+                        await Task.Run(() => UpdateDevicesList());
                     }
-                    ListUpdate();
                     break;
                 
                 case "tp_audiolink_increase_volume":
@@ -213,15 +261,15 @@ namespace audiolinkCS
             int index;
             CoreAudioDevice tmpDevice;
             
-            if (direction == "Input")
+            if (direction.Contains("Input"))
             {
-                index = GetDeviceIndex(deviceToMute, stringInDevices);
+                index = new Utilities().GetDeviceIndex(deviceToMute, stringInDevices);
                         
                 tmpDevice = inDevices.ToArray()[index];
             }
             else
             {
-                index = GetDeviceIndex(deviceToMute, stringOutDevices);
+                index = new Utilities().GetDeviceIndex(deviceToMute, stringOutDevices);
 
                 tmpDevice = outDevices.ToArray()[index];
             }
@@ -230,25 +278,47 @@ namespace audiolinkCS
             {
                 case "Mute":
                     tmpDevice.SetMuteAsync(true);
+                    Thread.Sleep(50);
+                    UpdateStateManager(tmpDevice);
                     break;
                 
                 case "Unmute":
                     tmpDevice.SetMuteAsync(false);
+                    Thread.Sleep(50);
+                    UpdateStateManager(tmpDevice);
                     break;
                 
                 case "Toggle":
                     tmpDevice.ToggleMuteAsync();
+                    Thread.Sleep(50);
+                    UpdateStateManager(tmpDevice);
                     break;
             }
         }
 
-        public void OnInfoEvent(InfoEvent message)
+        public async void OnInfoEvent(InfoEvent message)
         {
             Console.WriteLine("A");
-            throw new NotImplementedException();
+            // while (!hasUpdatedDevicesListOnce)
+            // {
+            //     await Task.Delay(25);
+            // }
+            foreach (var settings in message.Settings)
+            {
+                Console.WriteLine(settings.Name + " : " + settings.Value);
+                if (settings.Name == "Update interval (ms)")
+                {
+                    _updateInterval = Convert.ToInt32(settings.Value);
+                }
+            
+                if (settings.Name == "Muted states names")
+                {
+                    _muteStatesNames = settings.Value;
+                }
+            }
         }
 
-        public void OnListChangedEvent(ListChangeEvent message)
+        public async void OnListChangedEvent(ListChangeEvent message)
         {
             Console.WriteLine(message.ActionId);
             switch (message.ActionId)
@@ -288,6 +358,11 @@ namespace audiolinkCS
                     Console.WriteLine("ActionID: " + message.ActionId + " ; ListId: " + message.ListId);
                     break;
             }
+            
+            if (!_isUpdatingDevicesList)
+            {
+                await Task.Run(() => UpdateDevicesList());
+            }
         }
 
         public void OnBroadcastEvent(BroadcastEvent message)
@@ -296,41 +371,29 @@ namespace audiolinkCS
             throw new NotImplementedException();
         }
 
-        public void OnSettingsEvent(SettingsEvent message)
+        public async void OnSettingsEvent(SettingsEvent message)
         {
             Console.WriteLine("d");
-            throw new NotImplementedException();
+            foreach (var settings in message.Values)
+            {
+                Console.WriteLine(settings.Name + " : " + settings.Value);
+                if (settings.Name == "Update interval (ms)")
+                {
+                    _updateInterval = Convert.ToInt32(settings.Value);
+                }
+            
+                if (settings.Name == "Muted states names")
+                {
+                    _muteStatesNames = settings.Value;
+                }
+            }
+            
+            if (!_isUpdatingDevicesList)
+            {
+                await Task.Run(() => UpdateDevicesList());
+            }
         }
-
-        internal string GetSystemDefaultBrowser()
-        {
-            string name = string.Empty;
-            RegistryKey regKey = null;
-
-            try
-            {
-                var regDefault = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.htm\\UserChoice", false);
-                var stringDefault = regDefault.GetValue("ProgId");
-
-                regKey = Registry.ClassesRoot.OpenSubKey(stringDefault + "\\shell\\open\\command", false);
-                name = regKey.GetValue(null).ToString().ToLower().Replace("" + (char)34, "");
-
-                if (!name.EndsWith("exe"))
-                    name = name.Substring(0, name.LastIndexOf(".exe") + 4);
-
-            }
-            catch (Exception ex)
-            {
-                name = string.Format("ERROR: An exception of type: {0} occurred in method: {1} in the following module: {2}", ex.GetType(), ex.TargetSite, this.GetType());
-            }
-            finally
-            {
-                if (regKey != null)
-                    regKey.Close();
-            }
-
-            return name;
-        }
+        
         public void OnNotificationOptionClickedEvent(NotificationOptionClickedEvent message)
         {
             Console.WriteLine(latestReleaseUrl);
@@ -338,16 +401,16 @@ namespace audiolinkCS
             {
                 try
                 {
-                    var prs = new ProcessStartInfo(GetSystemDefaultBrowser());
+                    var prs = new ProcessStartInfo(new Utilities().GetSystemDefaultBrowser());
                     prs.Arguments = latestReleaseUrl;
-                    System.Diagnostics.Process.Start(prs);
+                    Process.Start(prs);
                 }
                 catch (System.ComponentModel.Win32Exception noBrowser)
                 {
                     if (noBrowser.ErrorCode==-2147467259)
                         Console.WriteLine("-2147467259: " + noBrowser.Message);
                 }
-                catch (System.Exception other)
+                catch (Exception other)
                 {
                     Console.WriteLine("Other er: " + other.Message);
                 }
@@ -366,7 +429,7 @@ namespace audiolinkCS
             throw new NotImplementedException();
         }
 
-        private async System.Threading.Tasks.Task CheckGitHubNewerVersion()
+        private async Task CheckGitHubNewerVersion()
         {
             var gitClient = new GitHubClient(new ProductHeaderValue("DataNext27"));
             IReadOnlyList<Release> releases = await gitClient.Repository.Release.GetAll("DataNext27", "TouchPortal_AudioLink");
@@ -391,20 +454,10 @@ namespace audiolinkCS
             {
                 _client.ShowNotification("audiolink_new_update", "AudioLink New Update Available",
                     "New version: " + latestGitHubVersion +
-                    "\n\nPlease update to get new features and bug fixes" +
+                    "\n\nSale dev a la con" +
                     "\n\nCurrent Installed Version: " + version, new []
                     {
-                        new NotificationOptions() {Id = "update", Title = "Go To Download Location"}
-                    });
-            }
-            else
-            {
-                _client.ShowNotification("audiolink_new_update", "AudioLink New Update Available",
-                    "New version: " + latestGitHubVersion +
-                    "\n\nPlease update to get new features and bug fixes" +
-                    "\n\nCurrent Installed Version: " + version, new []
-                    {
-                        new NotificationOptions() {Id = "update", Title = "Go To Download Location"}
+                        new NotificationOptions() {Id = "audiolink_new_update_dl", Title = "Go To Download Location"}
                     });
             }
         }
