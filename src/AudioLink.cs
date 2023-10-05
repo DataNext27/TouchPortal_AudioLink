@@ -296,7 +296,7 @@ namespace audiolinkCS
             }
         }
 
-        public async void OnInfoEvent(InfoEvent message)
+        public void OnInfoEvent(InfoEvent message)
         {
             Console.WriteLine("A");
             // while (!hasUpdatedDevicesListOnce)
