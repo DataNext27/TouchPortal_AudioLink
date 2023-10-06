@@ -67,6 +67,9 @@ v1.1.0
   Additions:
     - Added Device name, volume and muted states
     - Added "update interval" and "muted states names" settings
+v1.1.1
+  Additions:
+    - Added an icon
 ```
 
 ## Dependencies
