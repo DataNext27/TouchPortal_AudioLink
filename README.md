@@ -1,5 +1,6 @@
 # AudioLink
 AudioLink is a [Touch Portal](https://www.touch-portal.com) plugin that allows you to control each audio device separately with sliders or buttons
+(May not work on Linux or Mac)
 
 
 - [AudioLink](#AudioLink)
