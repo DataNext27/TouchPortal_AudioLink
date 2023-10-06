@@ -16,7 +16,7 @@ namespace audiolinkCS
 {
     public class AudioLink : ITouchPortalEventHandler
     {
-        private string version = "1.1.0";
+        private string version = "1.1.1";
         private string latestReleaseUrl;
         
         IEnumerable<CoreAudioDevice> inDevices;
