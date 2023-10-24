@@ -16,7 +16,7 @@ namespace audiolinkCS
 {
     public class AudioLink : ITouchPortalEventHandler
     {
-        private string version = "1.1.1";
+        private string version = "1.1.2";
         private string latestReleaseUrl;
         
         IEnumerable<CoreAudioDevice> inDevices;
@@ -68,21 +68,24 @@ namespace audiolinkCS
                 Thread.Sleep(_updateInterval);
                 foreach (CoreAudioDevice d in inDevices)
                 {
-                    if (lastIVol != Convert.ToInt32(d.Volume))
+                    var vol = Convert.ToInt32(d.Volume);
+                    if (lastIVol != vol)
                     {
-                        _client.ConnectorUpdate($"tp_audiolink_input_connector|inputconnectordata={d.FullName}", Convert.ToInt32(d.Volume));
+                        _client.ConnectorUpdate($"tp_audiolink_input_connector|inputconnectordata={d.FullName}", vol);
                         UpdateStateManager(d);
                     }
-                    
+                    lastIVol = vol;
+
                 }
                 foreach (CoreAudioDevice d in outDevices)
                 {
-                    if (lastOVol != Convert.ToInt32(d.Volume))
+                    var vol = Convert.ToInt32(d.Volume);
+                    if (lastOVol != vol)
                     {
-                        _client.ConnectorUpdate($"tp_audiolink_output_connector|outputconnectordata={d.FullName}", Convert.ToInt32(d.Volume));
+                        _client.ConnectorUpdate($"tp_audiolink_output_connector|outputconnectordata={d.FullName}", vol);
                         UpdateStateManager(d);
                     } 
-                    lastOVol = Convert.ToInt32(d.Volume);
+                    lastOVol = vol;
                 }
             }
         }
@@ -92,31 +95,38 @@ namespace audiolinkCS
             // Name Section
             
             // Volume Section
-            _client.StateUpdate($"tp_audiolink_device_volume_{d.FullName}", Convert.ToString(Convert.ToInt32(d.Volume)));
+            _client.StateUpdate($"tp_audiolink_device_volume_Input_{d.FullName}", Convert.ToString(Convert.ToInt32(d.Volume)));
+            _client.StateUpdate($"tp_audiolink_device_volume_Output_{d.FullName}", Convert.ToString(Convert.ToInt32(d.Volume)));
             
             // Mute Section
             if (d.IsMuted)
             {
-                _client.StateUpdate($"tp_audiolink_device_state_{d.FullName}", $"{_muteStatesNames.Split(",")[0]}");
+                _client.StateUpdate($"tp_audiolink_device_state_Input_{d.FullName}", $"{_muteStatesNames.Split(",")[0]}");
+                _client.StateUpdate($"tp_audiolink_device_state_Output_{d.FullName}", $"{_muteStatesNames.Split(",")[0]}");
             }
             else
             {
-                _client.StateUpdate($"tp_audiolink_device_state_{d.FullName}", $"{_muteStatesNames.Split(",")[1]}");
+                _client.StateUpdate($"tp_audiolink_device_state_Input_{d.FullName}", $"{_muteStatesNames.Split(",")[1]}");
+                _client.StateUpdate($"tp_audiolink_device_state_Output_{d.FullName}", $"{_muteStatesNames.Split(",")[1]}");
             }
         }
         
         public void CreateStateManager(string direction, CoreAudioDevice d)
         {
-            _client.CreateState($"tp_audiolink_device_state_{d.FullName}", $"{direction} - {d.FullName}", "", "Device state");
-            _client.CreateState($"tp_audiolink_device_volume_{d.FullName}", $"{direction} - {d.FullName}", "", "Device volume");
-            _client.CreateState($"tp_audiolink_device_name_{d.FullName}", $"{direction} - {d.FullName}", $"{d.FullName}", "Device name");
+            _client.CreateState($"tp_audiolink_device_state_{direction}_{d.FullName}", $"{direction} - {d.FullName}", "", "Device state");
+            _client.CreateState($"tp_audiolink_device_volume_{direction}_{d.FullName}", $"{direction} - {d.FullName}", "", "Device volume");
+            _client.CreateState($"tp_audiolink_device_name_{direction}_{d.FullName}", $"{direction} - {d.FullName}", $"{d.FullName}", "Device name");
         }
 
         public void RemoveStateManager(CoreAudioDevice d)
         {
-            _client.RemoveState($"tp_audiolink_device_name_{d.FullName}");
-            _client.RemoveState($"tp_audiolink_device_volume_{d.FullName}");
-            _client.RemoveState($"tp_audiolink_device_state_{d.FullName}");
+            _client.RemoveState($"tp_audiolink_device_name_Input_{d.FullName}");
+            _client.RemoveState($"tp_audiolink_device_volume_Input_{d.FullName}");
+            _client.RemoveState($"tp_audiolink_device_state_Input_{d.FullName}");
+            
+            _client.RemoveState($"tp_audiolink_device_name_Output_{d.FullName}");
+            _client.RemoveState($"tp_audiolink_device_volume_Output_{d.FullName}");
+            _client.RemoveState($"tp_audiolink_device_state_Output_{d.FullName}");
         }
         
         public async Task UpdateDevicesList()
