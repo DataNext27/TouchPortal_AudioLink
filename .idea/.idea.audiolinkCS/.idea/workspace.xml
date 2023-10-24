@@ -9,7 +9,7 @@
   <component name="ChangeListManager">
     <list default="true" id="9f25b621-bd91-4890-8856-21073462b44f" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.audiolinkCS/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.audiolinkCS/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/AudioLink.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/AudioLink.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -102,7 +102,7 @@
       <workItem from="1696531042644" duration="64000" />
       <workItem from="1696531144777" duration="8740000" />
       <workItem from="1696629736451" duration="732000" />
-      <workItem from="1698174998583" duration="740000" />
+      <workItem from="1698174998583" duration="1740000" />
     </task>
     <task id="LOCAL-00001" summary="Init Commit">
       <created>1687876133228</created>

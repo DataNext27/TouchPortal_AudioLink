@@ -70,6 +70,9 @@ v1.1.0
 v1.1.1
   Additions:
     - Added an icon
+v1.1.2
+  Fixes:
+    - Fixed a bug where some states would not appear
 ```
 
 ## Dependencies
